@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Plus, Trash2, ArrowUp, Menu, LogIn, ShoppingCart, Sparkles } from 'lucide-react';
+import { Plus, Minus, Trash2, ArrowUp, Menu, LogIn, ShoppingCart, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -413,14 +413,35 @@ export function ShoppingList() {
                 <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">
                   Quantity
                 </label>
-                <Input
-                  type="number"
-                  min="1"
-                  value={quantity}
-                  onChange={(e) => setQuantity(Math.max(1, parseInt(e.target.value) || 1))}
-                  onKeyPress={handleKeyPress}
-                  className="text-base h-12"
-                />
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="h-12 w-12"
+                    aria-label="Decrease quantity"
+                    onClick={() => setQuantity((prev) => Math.max(1, prev - 1))}
+                  >
+                    <Minus className="h-4 w-4" />
+                  </Button>
+                  <Input
+                    type="number"
+                    min="1"
+                    value={quantity}
+                    onChange={(e) => setQuantity(Math.max(1, parseInt(e.target.value) || 1))}
+                    onFocus={(e) => e.currentTarget.select()}
+                    onKeyPress={handleKeyPress}
+                    className="text-base h-12 w-24 text-center"
+                  />
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="h-12 w-12"
+                    aria-label="Increase quantity"
+                    onClick={() => setQuantity((prev) => prev + 1)}
+                  >
+                    <Plus className="h-4 w-4" />
+                  </Button>
+                </div>
               </div>
             </div>
             <Button
