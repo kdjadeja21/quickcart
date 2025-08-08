@@ -12,6 +12,13 @@ import {
 } from '@/components/ui/select';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import {
   ShoppingItem,
@@ -34,6 +41,7 @@ export function ShoppingList() {
   const [plan, setPlan] = useState<number>(0);
   const [showScrollTop, setShowScrollTop] = useState(false);
   const [isMobileSheetOpen, setIsMobileSheetOpen] = useState(false);
+  const [isProDialogOpen, setIsProDialogOpen] = useState(false);
   const { toast } = useToast();
   const { user, isLoaded, isSignedIn } = useUser();
   const { theme, setTheme } = useTheme();
@@ -206,6 +214,7 @@ export function ShoppingList() {
   const totalAmount = items.reduce((sum, item) => sum + item.total, 0);
   const totalQuantity = items.reduce((sum, item) => sum + item.quantity, 0);
   const totalItems = items.length;
+  const displayProPrice = currency === 'INR' ? 'INR 99' : 'USD 1.99';
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
@@ -256,6 +265,25 @@ export function ShoppingList() {
                     <div>
                       <p className="mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">Theme</p>
                       <ThemeToggle onChanged={() => setIsMobileSheetOpen(false)} />
+                    </div>
+                    <div>
+                      <p className="mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">Pro</p>
+                      {plan === 0 ? (
+                        <Button
+                          className="w-full gap-2 bg-gradient-to-r from-amber-500 to-pink-500 hover:from-amber-600 hover:to-pink-600 text-white"
+                          onClick={() => {
+                            setIsMobileSheetOpen(false);
+                            setIsProDialogOpen(true);
+                          }}
+                        >
+                          <Sparkles className="h-4 w-4" />
+                          Become Pro
+                        </Button>
+                      ) : (
+                        <span className="inline-flex items-center rounded-full bg-gradient-to-r from-sky-500 via-blue-600 to-indigo-600 text-white px-2 py-1 text-xs font-semibold">
+                          You’re Pro
+                        </span>
+                      )}
                     </div>
                   </div>
                 </SheetContent>
@@ -315,6 +343,16 @@ export function ShoppingList() {
                 <div className="w-28">
                   <ThemeToggle />
                 </div>
+                {plan === 0 && (
+                  <Button
+                    size="sm"
+                    className="gap-2 bg-gradient-to-r from-amber-500 to-pink-500 hover:from-amber-600 hover:to-pink-600 text-white"
+                    onClick={() => setIsProDialogOpen(true)}
+                  >
+                    <Sparkles className="h-4 w-4" />
+                    Become Pro
+                  </Button>
+                )}
                 <SignedOut>
                   <SignInButton mode="modal">
                     <Button size="sm" variant="default" className="gap-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white">
@@ -510,6 +548,70 @@ export function ShoppingList() {
           </Button>
         )}
       </div>
+
+      {/* Become Pro Dialog */}
+      <Dialog open={isProDialogOpen} onOpenChange={setIsProDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Go Pro — Lifetime Access</DialogTitle>
+            <DialogDescription>
+              Own Quick Cart Pro with a one‑time purchase. Sync across devices and unlock powerful features.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="mt-1">
+            <p className="text-sm">
+              From <span className="font-semibold">{displayProPrice}</span> • One‑time purchase • Lifetime access
+            </p>
+            <p className="text-sm text-muted-foreground">Regional pricing applies.</p>
+            <div className="mt-2 flex items-center gap-3">
+              <span className="inline-flex items-center rounded-full bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-200 px-3 py-1 text-sm font-medium">INR 99</span>
+              <span className="inline-flex items-center rounded-full bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-200 px-3 py-1 text-sm font-medium">USD 1.99</span>
+            </div>
+          </div>
+          <div className="space-y-2 text-sm">
+            <div className="flex items-start gap-2">
+              <Sparkles className="h-4 w-4 mt-0.5 text-amber-500" />
+              <span>Save data in a secure database (access from any device)</span>
+            </div>
+            <div className="flex items-start gap-2">
+              <Sparkles className="h-4 w-4 mt-0.5 text-amber-500" />
+              <span>Create and manage up to 12 carts</span>
+            </div>
+            <div className="flex items-start gap-2">
+              <Sparkles className="h-4 w-4 mt-0.5 text-amber-500" />
+              <span>Edit items inline (name, quantity, price)</span>
+            </div>
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setIsProDialogOpen(false)}>Maybe later</Button>
+            {isSignedIn ? (
+              <Button
+                className="gap-2 bg-gradient-to-r from-amber-500 to-pink-500 hover:from-amber-600 hover:to-pink-600 text-white"
+                onClick={() => {
+                  setIsProDialogOpen(false);
+                  toast({
+                    title: 'Upgrade coming soon',
+                    description: 'Billing is not yet connected. We\'ll enable Pro shortly.',
+                  });
+                }}
+              >
+                <Sparkles className="h-4 w-4" />
+                Upgrade
+              </Button>
+            ) : (
+              <SignInButton mode="modal">
+                <Button
+                  className="gap-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white"
+                  onClick={() => setIsProDialogOpen(false)}
+                >
+                  <LogIn className="h-4 w-4" />
+                  Sign in to upgrade
+                </Button>
+              </SignInButton>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
