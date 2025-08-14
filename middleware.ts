@@ -5,7 +5,8 @@ import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
 // Example: protect dashboard, account, and all non-public API routes
 const isProtectedRoute = createRouteMatcher([
   "/dashboard(.*)",
-  "/account(.*)"
+  "/account(.*)",
+  "/carts(.*)"
 ]);
 
 // 3b) Apply protection

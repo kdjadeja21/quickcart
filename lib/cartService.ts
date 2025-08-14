@@ -17,6 +17,7 @@ import {
 } from 'firebase/firestore';
 import type { ShoppingItem } from './storage';
 import { generateId } from './storage';
+import { startApiLoading, endApiLoading } from './loaderToast';
 
 export class CartLimitError extends Error {
   code = 'cart/limit-exceeded';
@@ -93,15 +94,24 @@ function fromSnap(id: string, data: any): ShoppingCart {
 }
 
 export async function listCarts(userId: string): Promise<ShoppingCart[]> {
-  const q = query(cartsColRef(), where('userId', '==', userId), orderBy('updatedAt', 'desc'));
-  const snap = await getDocs(q);
-  return snap.docs.map(d => fromSnap(d.id, d.data()));
+  startApiLoading();
+  try {
+    const q = query(cartsColRef(), where('userId', '==', userId), orderBy('updatedAt', 'desc'));
+    const snap = await getDocs(q);
+    return snap.docs.map(d => fromSnap(d.id, d.data()));
+  } catch (error) {
+    console.error('Error listing carts', { userId, error });
+    return [];
+  } finally {
+    endApiLoading();
+  }
 }
 
 /**
  * Returns all active carts for the user ordered by last update descending.
  */
 export async function listActiveCarts(userId: string): Promise<ShoppingCart[]> {
+  startApiLoading();
   try{
     const q = query(
       cartsColRef(),
@@ -110,11 +120,12 @@ export async function listActiveCarts(userId: string): Promise<ShoppingCart[]> {
       orderBy('updatedAt', 'desc')
     );
     const snap = await getDocs(q);
-    console.log('List active carts', snap.docs.map(d => d.data()));
     return snap.docs.map(d => fromSnap(d.id, d.data()));
   } catch (error) {
-    console.error('Error listing active carts', error);
+    console.error('Error listing active carts', { userId, error });
     return [];
+  } finally {
+    endApiLoading();
   }
 }
 
@@ -130,88 +141,135 @@ function isSameLocalDate(a: Date, b: Date): boolean {
  * date, null is returned.
  */
 export async function getTodaysActiveCart(userId: string): Promise<ShoppingCart | null> {
-  const today = new Date();
-  const active = await listActiveCarts(userId);
-  console.log('Active carts', active);
-  for (const cart of active) {
-    // Prefer createdAt as the cart's day identity; fall back to updatedAt
-    const compareDate = cart.createdAt ?? cart.updatedAt;
-    if (compareDate && isSameLocalDate(compareDate, today)) {
-      return cart;
+  startApiLoading();
+  try {
+    const today = new Date();
+    const active = await listActiveCarts(userId);
+    for (const cart of active) {
+      // Prefer createdAt as the cart's day identity; fall back to updatedAt
+      const compareDate = cart.createdAt ?? cart.updatedAt;
+      if (compareDate && isSameLocalDate(compareDate, today)) {
+        return cart;
+      }
     }
+    return null;
+  } catch (error) {
+    console.error('Error getting today\'s active cart', { userId, error });
+    return null;
+  } finally {
+    endApiLoading();
   }
-  return null;
 }
 
 export async function getCart(userId: string, cartId: string): Promise<ShoppingCart | null> {
-  const ref = doc(cartsColRef(), cartId);
-  const snap = await getDoc(ref);
-  if (!snap.exists()) return null;
-  return fromSnap(snap.id, snap.data());
+  startApiLoading();
+  try {
+    const ref = doc(cartsColRef(), cartId);
+    const snap = await getDoc(ref);
+    if (!snap.exists()) return null;
+    return fromSnap(snap.id, snap.data());
+  } catch (error) {
+    console.error('Error getting cart', { userId, cartId, error });
+    return null;
+  } finally {
+    endApiLoading();
+  }
 }
 
 async function syncCartCountIfMissing(userId: string): Promise<void> {
-  const uRef = userDocRef(userId);
-  const uSnap = await getDoc(uRef);
-  if (!uSnap.exists() || typeof uSnap.data()?.cartCount !== 'number') {
-    const current = await getDocs(query(cartsColRef(), where('userId', '==', userId)));
-    await setDoc(uRef, { cartCount: current.size }, { merge: true });
+  try {
+    const uRef = userDocRef(userId);
+    const uSnap = await getDoc(uRef);
+    if (!uSnap.exists() || typeof uSnap.data()?.cartCount !== 'number') {
+      const current = await getDocs(query(cartsColRef(), where('userId', '==', userId)));
+      await setDoc(uRef, { cartCount: current.size }, { merge: true });
+    }
+  } catch (error) {
+    console.warn('Warning: failed to sync cart count (non-fatal)', { userId, error });
   }
 }
 
 export async function getCartCount(userId: string): Promise<number> {
-  const uSnap = await getDoc(userDocRef(userId));
-  if (uSnap.exists() && typeof uSnap.data()?.cartCount === 'number') {
-    return uSnap.data()!.cartCount as number;
+  startApiLoading();
+  try {
+    const uSnap = await getDoc(userDocRef(userId));
+    if (uSnap.exists() && typeof uSnap.data()?.cartCount === 'number') {
+      return uSnap.data()!.cartCount as number;
+    }
+    const current = await getDocs(query(cartsColRef(), where('userId', '==', userId)));
+    return current.size;
+  } catch (error) {
+    console.error('Error getting cart count', {
+      userId,
+      error
+    });
+    return 0;
+  } finally {
+    endApiLoading();
   }
-  const current = await getDocs(query(cartsColRef(), where('userId', '==', userId)));
-  return current.size;
 }
 
 export async function createCart(
   userId: string,
   input: NewCartInput,
-  maxCarts: number
+  maxCarts: number = 12
 ): Promise<ShoppingCart> {
-  await syncCartCountIfMissing(userId);
-
-  const created = await runTransaction(db, async tx => {
-    const uRef = userDocRef(userId);
-    const uSnap = await tx.get(uRef);
-    const cartCount = (uSnap.exists() && typeof uSnap.data()?.cartCount === 'number')
-      ? (uSnap.data()!.cartCount as number)
-      : 0;
-
-    if (cartCount >= maxCarts) {
-      throw new CartLimitError();
+  startApiLoading();
+  try {
+    // Best-effort; failure should not block cart creation
+    try {
+      await syncCartCountIfMissing(userId);
+    } catch (error) {
+      console.warn('Warning: proceeding without synced cart count', { userId, error });
     }
 
-    const cRef = doc(cartsColRef());
-    tx.set(cRef, {
-      name: input.name,
-      items: toFirestoreItems(input.items ?? []),
-      currency: input.currency,
-      userId,
-      status: 'active',
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp()
+    const created = await runTransaction(db, async tx => {
+      const uRef = userDocRef(userId);
+      const uSnap = await tx.get(uRef);
+      const cartCount = (uSnap.exists() && typeof uSnap.data()?.cartCount === 'number')
+        ? (uSnap.data()!.cartCount as number)
+        : 0;
+
+      if (cartCount >= maxCarts) {
+        throw new CartLimitError();
+      }
+
+      const cRef = doc(cartsColRef());
+      tx.set(cRef, {
+        name: input.name,
+        items: toFirestoreItems(input.items ?? []),
+        currency: input.currency,
+        userId,
+        status: 'active',
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
+      });
+
+      tx.set(uRef, { cartCount: increment(1) }, { merge: true });
+      return cRef.id;
     });
 
-    tx.set(uRef, { cartCount: increment(1) }, { merge: true });
-    return cRef.id;
-  });
-
-  // Optimistic local timestamps; fields will sync once listeners re-fetch
-  return {
-    id: created,
-    name: input.name,
-    items: input.items ?? [],
-    currency: input.currency,
-    createdAt: new Date(),
-    updatedAt: new Date(),
-    userId,
-    status: 'active'
-  };
+    // Optimistic local timestamps; fields will sync once listeners re-fetch
+    return {
+      id: created,
+      name: input.name,
+      items: input.items ?? [],
+      currency: input.currency,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      userId,
+      status: 'active'
+    };
+  } catch (error) {
+    if (error instanceof CartLimitError) {
+      // Preserve semantic error for upstream handlers
+      throw error;
+    }
+    console.error('Error creating cart', { userId, error });
+    throw error;
+  } finally {
+    endApiLoading();
+  }
 }
 
 export async function updateCart(
@@ -219,12 +277,33 @@ export async function updateCart(
   cartId: string,
   updates: Partial<Pick<NewCartInput, 'name' | 'items' | 'currency'>>
 ): Promise<void> {
-  const cRef = doc(cartsColRef(), cartId);
-  const payload: any = { updatedAt: serverTimestamp() };
-  if (typeof updates.name === 'string') payload.name = updates.name;
-  if (Array.isArray(updates.items)) payload.items = toFirestoreItems(updates.items);
-  if (typeof updates.currency === 'string') payload.currency = updates.currency;
-  await updateDoc(cRef, payload);
+  startApiLoading();
+  try {
+    const cRef = doc(cartsColRef(), cartId);
+    const payload: any = { updatedAt: serverTimestamp() };
+    if (typeof updates.name === 'string') payload.name = updates.name;
+    if (Array.isArray(updates.items)) payload.items = toFirestoreItems(updates.items);
+    if (typeof updates.currency === 'string') payload.currency = updates.currency;
+    await updateDoc(cRef, payload);
+  } catch (error) {
+    console.error('Error updating cart', { userId, cartId, updates, error });
+    throw error;
+  } finally {
+    endApiLoading();
+  }
+}
+
+export async function archiveCart(userId: string, cartId: string): Promise<void> {
+  startApiLoading();
+  try {
+    const cRef = doc(cartsColRef(), cartId);
+    await updateDoc(cRef, { status: 'archived', updatedAt: serverTimestamp() });
+  } catch (error) {
+    console.error('Error archiving cart', { userId, cartId, error });
+    throw error;
+  } finally {
+    endApiLoading();
+  }
 }
 
 export async function renameCart(userId: string, cartId: string, name: string): Promise<void> {
@@ -232,22 +311,32 @@ export async function renameCart(userId: string, cartId: string, name: string): 
 }
 
 export async function deleteCart(userId: string, cartId: string): Promise<void> {
-  const uRef = userDocRef(userId);
-  const cRef = doc(cartsColRef(), cartId);
+  startApiLoading();
+  try {
+    const uRef = userDocRef(userId);
+    const cRef = doc(cartsColRef(), cartId);
 
-  await runTransaction(db, async tx => {
-    const cSnap = await tx.get(cRef);
-    if (!cSnap.exists()) return;
-    tx.delete(cRef);
+    await runTransaction(db, async tx => {
+      // All reads must occur before any writes in a Firestore transaction
+      const cSnap = await tx.get(cRef);
+      const uSnap = await tx.get(uRef);
+      if (!cSnap.exists()) return;
 
-    const uSnap = await tx.get(uRef);
-    const cartCount = (uSnap.exists() && typeof uSnap.data()?.cartCount === 'number')
-      ? (uSnap.data()!.cartCount as number)
-      : 0;
+      const cartCount = (uSnap.exists() && typeof uSnap.data()?.cartCount === 'number')
+        ? (uSnap.data()!.cartCount as number)
+        : 0;
+      const next = Math.max(0, cartCount - 1);
 
-    const next = Math.max(0, cartCount - 1);
-    tx.set(uRef, { cartCount: next }, { merge: true });
-  });
+      // Writes after all reads
+      tx.delete(cRef);
+      tx.set(uRef, { cartCount: next }, { merge: true });
+    });
+  } catch (error) {
+    console.error('Error deleting cart', { userId, cartId, error });
+    throw error;
+  } finally {
+    endApiLoading();
+  }
 }
 
 /**
@@ -255,18 +344,26 @@ export async function deleteCart(userId: string, cartId: string): Promise<void> 
  * This is a best-effort enforcement to ensure only one active cart exists.
  */
 export async function archiveOtherActiveCarts(userId: string, keepCartId?: string): Promise<void> {
-  const q = query(
-    cartsColRef(),
-    where('userId', '==', userId),
-    where('status', '==', 'active')
-  );
-  const snap = await getDocs(q);
-  const updates: Array<Promise<void>> = [];
-  for (const d of snap.docs) {
-    if (d.id === keepCartId) continue;
-    updates.push(updateDoc(doc(cartsColRef(), d.id), { status: 'archived', updatedAt: serverTimestamp() }));
-  }
-  if (updates.length > 0) {
-    await Promise.all(updates);
+  startApiLoading();
+  try {
+    const q = query(
+      cartsColRef(),
+      where('userId', '==', userId),
+      where('status', '==', 'active')
+    );
+    const snap = await getDocs(q);
+    const updates: Array<Promise<void>> = [];
+    for (const d of snap.docs) {
+      if (d.id === keepCartId) continue;
+      updates.push(updateDoc(doc(cartsColRef(), d.id), { status: 'archived', updatedAt: serverTimestamp() }));
+    }
+    if (updates.length > 0) {
+      await Promise.all(updates);
+    }
+  } catch (error) {
+    // Best effort enforcement should not throw
+    console.warn('Warning: failed to archive other active carts (non-fatal)', { userId, keepCartId, error });
+  } finally {
+    endApiLoading();
   }
 }

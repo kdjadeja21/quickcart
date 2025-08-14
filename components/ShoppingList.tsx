@@ -22,7 +22,7 @@ import ShoppingItems from '@/components/shopping/ShoppingItems';
 import ScrollToTopButton from '@/components/shopping/ScrollToTopButton';
 import { useUserSettingsSync } from '@/hooks/useUserSettingsSync';
 import { useScrollTopVisibility } from '@/hooks/useScrollTop';
-import { createCart, updateCart, getTodaysActiveCart, archiveOtherActiveCarts } from '@/lib/cartService';
+import { createCart, updateCart, getTodaysActiveCart, archiveOtherActiveCarts, archiveCart, listCarts } from '@/lib/cartService';
 
 export function ShoppingList() {
   const [items, setItems] = useState<ShoppingItem[]>([]);
@@ -35,6 +35,7 @@ export function ShoppingList() {
   const { isLoaded, isSignedIn, user } = useUser();
   const [cartId, setCartId] = useState<string | null>(null);
   const [isAdding, setIsAdding] = useState(false);
+  const [isCreatingNewCart, setIsCreatingNewCart] = useState(false);
   const [skipNextPersist, setSkipNextPersist] = useState(false);
   const { theme, setTheme } = useTheme();
   const { showScrollTop, scrollToTop } = useScrollTopVisibility(300);
@@ -50,13 +51,10 @@ export function ShoppingList() {
     let cancelled = false;
 
     async function loadFromFirebase() {
-      console.log({ user: user?.id })
       if (!user?.id) return;
       try {
         // Load only today's active cart; if present, ensure it's the single active
-        console.log('Loading from Firebase try block');
         const todays = await getTodaysActiveCart(user.id);
-        console.log({ todays })
         if (cancelled) return;
         if (todays) {
           setCartId(todays.id);
@@ -78,7 +76,6 @@ export function ShoppingList() {
     }
 
     if (plan === 1 && isSignedIn) {
-      console.log('Loading from Firebase');
       loadFromFirebase();
     } else {
       // Local mode
@@ -199,6 +196,51 @@ export function ShoppingList() {
   const totalItems = items.length;
   const displayProPrice = currency === 'INR' ? 'INR 99' : 'USD 1.99';
 
+  const generateUniqueCartName = async (uid: string) => {
+    const used = new Set((await listCarts(uid)).map(c => Number(c.name.match(/#(\d{1,3})$/)?.[1] || 0)));
+    for (let i = 1; i <= 999; i++) if (!used.has(i)) return `My Cart #${String(i).padStart(3, '0')}`;
+    return `My Cart #${String(Math.floor(1 + Math.random() * 999)).padStart(3, '0')}`;
+  };
+
+  const handleNewCart = async () => {
+    if (isCreatingNewCart) return;
+    if (!(plan === 1 && isSignedIn && user?.id)) {
+      toast.error('Pro required', { description: 'Sign in and upgrade to Pro to manage multiple carts.' });
+      return;
+    }
+
+    setIsCreatingNewCart(true);
+    try {
+      if (cartId) {
+        try {
+          await archiveCart(user.id, cartId);
+        } catch {
+          // proceed even if archiving fails
+        }
+      }
+
+      // Generate a unique 3-digit id for the cart name
+      const cartName = await generateUniqueCartName(user.id);
+      const created = await createCart(
+        user.id,
+        { name: cartName, items: [], currency }
+      );
+
+      setSkipNextPersist(true);
+      setCartId(created.id);
+      setItems([]);
+
+      // best-effort: ensure others are archived
+      archiveOtherActiveCarts(user.id, created.id).catch(() => {});
+
+      toast.success('Started a new cart for today');
+    } catch (error) {
+      toast.error('Could not start a new cart');
+    } finally {
+      setIsCreatingNewCart(false);
+    }
+  };
+
   return (
     <div className="bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 dark:from-slate-950 dark:via-slate-900 dark:to-slate-800">
       <ShoppingHeader
@@ -207,6 +249,7 @@ export function ShoppingList() {
         plan={plan}
         totalItems={totalItems}
         onOpenPro={() => setIsProDialogOpen(true)}
+        onNewCart={handleNewCart}
       />
       <div className="container mx-auto max-w-2xl px-4 py-8">
         <AddItemForm

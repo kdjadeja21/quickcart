@@ -52,6 +52,22 @@ function Button({
   const Comp = asChild ? Slot : "button"
   const finalDisabled = Boolean(disabled) || Boolean(isLoading)
 
+  // When asChild is true, Radix Slot requires exactly one child element.
+  // Avoid rendering extra nodes (like the spinner) alongside the child.
+  if (asChild) {
+    return (
+      <Comp
+        data-slot="button"
+        className={cn(buttonVariants({ variant, size, className }))}
+        disabled={finalDisabled}
+        aria-busy={isLoading ? true : undefined}
+        {...props}
+      >
+        {children}
+      </Comp>
+    )
+  }
+
   return (
     <Comp
       data-slot="button"

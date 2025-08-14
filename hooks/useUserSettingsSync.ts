@@ -3,6 +3,7 @@
 import { useEffect, useRef } from 'react';
 import { useUser } from '@clerk/nextjs';
 import { saveSettings } from '@/lib/storage';
+import { startApiLoading, endApiLoading } from '@/lib/loaderToast';
 
 type Theme = 'light' | 'dark';
 
@@ -35,17 +36,21 @@ export function useUserSettingsSync({ currency, setCurrency, theme, setTheme, se
       if (currency !== nextCurrency) setCurrency(nextCurrency);
       if (theme !== nextTheme) setTheme(nextTheme);
 
-      try {
-        if (!hasCurrency || !hasTheme) {
+      if (!hasCurrency || !hasTheme) {
+        try {
+          startApiLoading('Syncing account...');
           await user.update({
             unsafeMetadata: { ...um, currency: nextCurrency, theme: nextTheme },
           });
+        } catch (e) {
+          console.error('Failed to initialize user unsafe metadata', e);
+        } finally {
+          endApiLoading();
         }
-      } catch (e) {
-        console.error('Failed to initialize user unsafe metadata', e);
       }
 
       try {
+        startApiLoading('Loading plan...');
         // Check if user already has a plan before setting defaults
         const planRes = await fetch('/api/user/plan', { 
           method: 'GET',
@@ -65,7 +70,6 @@ export function useUserSettingsSync({ currency, setCurrency, theme, setTheme, se
           });
           if (defaultPlanRes.ok) {
             const data = (await defaultPlanRes.json()) as { plan?: unknown };
-            console.log(data);
             const planNum = typeof data.plan === 'number' ? (data.plan as number) : 0;
             setPlan(planNum);
           } else {
@@ -75,6 +79,8 @@ export function useUserSettingsSync({ currency, setCurrency, theme, setTheme, se
       } catch (e) {
         console.error('Failed to get/set plan in privateMetadata', e);
         setPlan(0);
+      } finally {
+        endApiLoading();
       }
 
       initializedUserIdRef.current = user.id;
@@ -91,9 +97,12 @@ export function useUserSettingsSync({ currency, setCurrency, theme, setTheme, se
         const um = (user.unsafeMetadata || {}) as Record<string, unknown>;
         if (um.currency !== currency) {
           try {
+            startApiLoading('Updating currency...');
             await user.update({ unsafeMetadata: { ...um, currency } });
           } catch (e) {
             console.error('Failed to update currency in user metadata', e);
+          } finally {
+            endApiLoading();
           }
         }
       } else {
@@ -111,9 +120,12 @@ export function useUserSettingsSync({ currency, setCurrency, theme, setTheme, se
       const currentTheme = um.theme as Theme | undefined;
       if (currentTheme !== theme) {
         try {
+          startApiLoading('Updating theme...');
           await user.update({ unsafeMetadata: { ...um, theme } });
         } catch (e) {
           console.error('Failed to update theme in user metadata', e);
+        } finally {
+          endApiLoading();
         }
       }
     };
