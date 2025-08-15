@@ -52,7 +52,7 @@ export function AddItemForm({
               size="sm"
               variant="outline"
               disabled={disableNewCart}
-              className="border-2 border-green-200 hover:border-green-300 text-green-700 hover:text-green-800 bg-green-50 hover:bg-green-100 dark:border-green-700/50 dark:hover:border-green-600/50 dark:text-green-300 dark:hover:text-green-200 dark:bg-green-900/20 dark:hover:bg-green-900/30"
+              className="cursor-pointer border-2 border-green-200 hover:border-green-300 text-green-700 hover:text-green-800 bg-green-50 hover:bg-green-100 dark:border-green-700/50 dark:hover:border-green-600/50 dark:text-green-300 dark:hover:text-green-200 dark:bg-green-900/20 dark:hover:bg-green-900/30"
             >
               <ShoppingCart className="h-4 w-4 mr-2" />
               <span className="hidden sm:inline">Create a new Cart</span>

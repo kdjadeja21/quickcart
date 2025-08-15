@@ -297,6 +297,11 @@ export function ShoppingList() {
           currency={currentCurrency}
           onClearAll={clearAll}
           onDeleteItem={deleteItem}
+          onUpdateItem={(id, updates) => {
+            setItems(prev => prev.map(it => it.id === id ? { ...it, ...updates } : it));
+          }}
+          canEdit={plan === 1 && isSignedIn}
+          onRequirePro={() => setIsProDialogOpen(true)}
         />
 
         <ScrollToTopButton show={showScrollTop} onClick={scrollToTop} />
