@@ -61,25 +61,26 @@ export function ShoppingHeader({
                   <SheetTitle>Quick Settings</SheetTitle>
                 </SheetHeader>
                 <div className="mt-6 space-y-4">
-                  <div>
-                    <p className="mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">Navigation</p>
-                    <div className="flex flex-col gap-1">
-                      <Button
-                        variant="ghost"
-                        className={cn(
-                          'w-full justify-start gap-3',
-                          isHomeActive && 'bg-slate-100 text-slate-900 dark:bg-slate-800/60 dark:text-white'
-                        )}
-                        onClick={() => {
-                          setIsMobileSheetOpen(false);
-                          router.push('/');
-                        }}
-                      >
-                        <Home className="h-4 w-4" />
-                        Home
-                      </Button>
-                      {isPro && (
-                        <>
+                  {isPro && (
+                    <>
+                      <div>
+                        <p className="mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">Navigation</p>
+                        <div className="flex flex-col gap-1">
+                          <Button
+                            variant="ghost"
+                            className={cn(
+                              'w-full justify-start gap-3',
+                              isHomeActive && 'bg-slate-100 text-slate-900 dark:bg-slate-800/60 dark:text-white'
+                            )}
+                            onClick={() => {
+                              setIsMobileSheetOpen(false);
+                              router.push('/');
+                            }}
+                          >
+                            <Home className="h-4 w-4" />
+                            Home
+                          </Button>
+
                           <Button
                             variant="ghost"
                             className={cn(
@@ -95,10 +96,11 @@ export function ShoppingHeader({
                             Carts
                           </Button>
                           {false && typeof onNewCart === 'function' && null}
-                        </>
-                      )}
-                    </div>
-                  </div>
+
+                        </div>
+                      </div>
+                    </>
+                  )}
                   <div>
                     <p className="mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">Currency</p>
                     <Select
@@ -184,7 +186,7 @@ export function ShoppingHeader({
                         Home
                       </Link>
                     </Button>
-                    
+
                     <Button asChild size="sm" variant="ghost" className={cn('gap-2 px-2', isCartsActive && 'bg-slate-100 dark:bg-slate-800/60')}>
                       <Link href="/carts" aria-current={isCartsActive ? 'page' : undefined}>
                         <ShoppingCart className="h-4 w-4" />

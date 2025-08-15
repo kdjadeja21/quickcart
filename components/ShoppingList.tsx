@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { LogIn, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -25,6 +25,7 @@ import { useScrollTopVisibility } from '@/hooks/useScrollTop';
 import { createCart, updateCart, getTodaysActiveCart, archiveOtherActiveCarts, archiveCart, listCarts } from '@/lib/cartService';
 import { endApiLoading, startApiLoading } from '@/lib/loaderToast';
 import { Loader } from '@/components/ui/loader';
+import { animateIncrement } from '@/lib/utils';
 
 export function ShoppingList() {
   const [items, setItems] = useState<ShoppingItem[]>([]);
@@ -41,6 +42,13 @@ export function ShoppingList() {
   const [skipNextPersist, setSkipNextPersist] = useState(false);
   const { theme, setTheme } = useTheme();
   const { showScrollTop, scrollToTop } = useScrollTopVisibility(300);
+
+  // Animation state for summary values
+  const [displayAmount, setDisplayAmount] = useState('');
+  const [displayItems, setDisplayItems] = useState(0);
+  const [displayQuantity, setDisplayQuantity] = useState(0);
+  const previousValues = useRef({ amount: 0, items: 0, quantity: 0 });
+  const cleanupRef = useRef<(() => void) | null>(null);
 
   // Load settings (currency) on mount
   useEffect(() => {
@@ -111,6 +119,64 @@ export function ShoppingList() {
     persist();
   }, [items, currency, plan, isSignedIn, user?.id, cartId]);
 
+  // Animation effect for summary values
+  useEffect(() => {
+    const currentCurrency = getCurrencyByCode(currency);
+    const totalAmount = items.reduce((sum, item) => sum + item.total, 0);
+    const totalQuantity = items.reduce((sum, item) => sum + item.quantity, 0);
+    const totalItems = items.length;
+
+    // Animate amount changes
+    if (totalAmount !== previousValues.current.amount) {
+      if (cleanupRef.current) {
+        cleanupRef.current();
+      }
+      
+      cleanupRef.current = animateIncrement(
+        previousValues.current.amount || totalAmount,
+        totalAmount,
+        800,
+        (value) => {
+          const formattedValue = formatCurrency(value, currentCurrency);
+          setDisplayAmount(formattedValue);
+        },
+        'easeOutQuart'
+      );
+      previousValues.current.amount = totalAmount;
+    }
+
+    // Animate item count changes
+    if (totalItems !== previousValues.current.items) {
+      animateIncrement(
+        previousValues.current.items || totalItems,
+        totalItems,
+        600,
+        (value) => setDisplayItems(Math.round(value)),
+        'easeOutCubic'
+      );
+      previousValues.current.items = totalItems;
+    }
+
+    // Animate quantity changes
+    if (totalQuantity !== previousValues.current.quantity) {
+      animateIncrement(
+        previousValues.current.quantity || totalQuantity,
+        totalQuantity,
+        600,
+        (value) => setDisplayQuantity(Math.round(value)),
+        'easeOutCubic'
+      );
+      previousValues.current.quantity = totalQuantity;
+    }
+
+    // Cleanup function
+    return () => {
+      if (cleanupRef.current) {
+        cleanupRef.current();
+      }
+    };
+  }, [items, currency]);
+
   // Sync user settings (currency/theme/plan) with Clerk or local storage
   useUserSettingsSync({ currency, setCurrency, theme: theme as any, setTheme: setTheme as any, setPlan });
 
@@ -175,9 +241,24 @@ export function ShoppingList() {
     });
   };
 
-  const deleteItem = (itemId: string) => {
+  const deleteItem = async (itemId: string) => {
     const itemToDelete = items.find(item => item.id === itemId);
+    
+    // Optimistically update UI
     setItems(prev => prev.filter(item => item.id !== itemId));
+    
+    // Persist changes
+    if (plan === 1 && isSignedIn && user?.id && cartId) {
+      try {
+        await updateCart(user.id, cartId, { items: items.filter(item => item.id !== itemId), currency });
+      } catch (error) {
+        // Revert on failure
+        setItems(prev => [...prev, itemToDelete!]);
+        throw error;
+      }
+    } else {
+      saveItems(items.filter(item => item.id !== itemId));
+    }
 
     if (itemToDelete) {
       toast("Item removed!", {
@@ -287,9 +368,9 @@ export function ShoppingList() {
         />
 
         <ShoppingSummary
-          totalItems={totalItems}
-          totalQuantity={totalQuantity}
-          totalAmountFormatted={formatCurrency(totalAmount, currentCurrency)}
+          totalItems={displayItems}
+          totalQuantity={displayQuantity}
+          totalAmountFormatted={displayAmount}
         />
 
         <ShoppingItems
@@ -297,8 +378,27 @@ export function ShoppingList() {
           currency={currentCurrency}
           onClearAll={clearAll}
           onDeleteItem={deleteItem}
-          onUpdateItem={(id, updates) => {
+          onUpdateItem={async (id, updates) => {
+            const originalItem = items.find(item => item.id === id);
+            if (!originalItem) return;
+            
+            // Optimistically update UI
             setItems(prev => prev.map(it => it.id === id ? { ...it, ...updates } : it));
+            
+            // Persist changes
+            if (plan === 1 && isSignedIn && user?.id && cartId) {
+              try {
+                const updatedItems = items.map(it => it.id === id ? { ...it, ...updates } : it);
+                await updateCart(user.id, cartId, { items: updatedItems, currency });
+              } catch (error) {
+                // Revert on failure
+                setItems(prev => prev.map(it => it.id === id ? originalItem : it));
+                throw error;
+              }
+            } else {
+              const updatedItems = items.map(it => it.id === id ? { ...it, ...updates } : it);
+              saveItems(updatedItems);
+            }
           }}
           canEdit={plan === 1 && isSignedIn}
           onRequirePro={() => setIsProDialogOpen(true)}
