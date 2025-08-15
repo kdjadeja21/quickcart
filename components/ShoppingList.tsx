@@ -44,7 +44,11 @@ export function ShoppingList() {
   const { showScrollTop, scrollToTop } = useScrollTopVisibility(300);
 
   // Animation state for summary values
-  const [displayAmount, setDisplayAmount] = useState('');
+  const [displayAmount, setDisplayAmount] = useState(() => {
+    const savedSettings = loadSettings();
+    const defaultCurrency = getCurrencyByCode(savedSettings.currency);
+    return formatCurrency(0, defaultCurrency);
+  });
   const [displayItems, setDisplayItems] = useState(0);
   const [displayQuantity, setDisplayQuantity] = useState(0);
   const previousValues = useRef({ amount: 0, items: 0, quantity: 0 });

@@ -12,7 +12,7 @@ interface ShoppingSummaryProps {
 export function ShoppingSummary({ totalItems, totalQuantity, totalAmountFormatted }: ShoppingSummaryProps) {
   return (
     <Card className="mb-6 bg-gradient-to-r from-green-50 to-emerald-50 dark:from-emerald-900/20 dark:to-emerald-700/20 border border-green-200/50 dark:border-emerald-600/30 shadow-xl">
-      <CardContent className="pt-6">
+      <CardContent>
         <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-center">
           <div>
             <p className="text-2xl font-bold text-green-700 dark:text-emerald-300">{totalItems}</p>
