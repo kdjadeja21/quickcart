@@ -3,8 +3,11 @@ import { Geist, Geist_Mono } from "next/font/google";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import "./globals.css";
 import { ClerkProvider } from '@clerk/nextjs'
+import { Suspense } from 'react'
 import { Toaster } from '@/components/ui/sonner'
 import Footer from '@/components/Footer'
+import RouteChangeLoader from '@/components/RouteChangeLoader'
+import Loader from "@/components/ui/loader";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -39,6 +42,9 @@ export default function RootLayout({
       >
         <ClerkProvider>
           <ThemeProvider>
+            <Suspense fallback={<Loader isLoading />}>
+              <RouteChangeLoader />
+            </Suspense>
             <main className="flex-1 w-full pb-24 sm:pb-0">
               {children}
             </main>

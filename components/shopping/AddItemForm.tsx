@@ -4,7 +4,7 @@ import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Minus, Plus } from 'lucide-react';
+import { Minus, Plus, ShoppingCart } from 'lucide-react';
 
 interface AddItemFormProps {
   name: string;
@@ -17,6 +17,9 @@ interface AddItemFormProps {
   onSubmit: () => void;
   onEnterPress?: () => void;
   isSubmitting?: boolean;
+  onNewCart?: () => void;
+  showNewCartButton?: boolean;
+  disableNewCart?: boolean;
 }
 
 export function AddItemForm({
@@ -30,6 +33,9 @@ export function AddItemForm({
   onSubmit,
   onEnterPress,
   isSubmitting,
+  onNewCart,
+  showNewCartButton,
+  disableNewCart,
 }: AddItemFormProps) {
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && onEnterPress) onEnterPress();
@@ -38,7 +44,22 @@ export function AddItemForm({
   return (
     <Card className="mb-6 bg-white/90 dark:bg-slate-800/90 backdrop-blur-sm border border-gray-200/50 dark:border-slate-700/50 shadow-xl">
       <CardHeader>
-        <CardTitle className="text-xl">Add New Item</CardTitle>
+        <div className="flex items-center justify-between gap-2">
+          <CardTitle className="text-xl">Add New Item</CardTitle>
+          {showNewCartButton && onNewCart && (
+            <Button
+              onClick={onNewCart}
+              size="sm"
+              variant="outline"
+              disabled={disableNewCart}
+              className="border-2 border-green-200 hover:border-green-300 text-green-700 hover:text-green-800 bg-green-50 hover:bg-green-100 dark:border-green-700/50 dark:hover:border-green-600/50 dark:text-green-300 dark:hover:text-green-200 dark:bg-green-900/20 dark:hover:bg-green-900/30"
+            >
+              <ShoppingCart className="h-4 w-4 mr-2" />
+              <span className="hidden sm:inline">Create a new Cart</span>
+              <span className="sm:hidden">New Cart</span>
+            </Button>
+          )}
+        </div>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -107,16 +128,19 @@ export function AddItemForm({
             </div>
           </div>
         </div>
-        <Button
-          onClick={onSubmit}
-          className="w-full h-12 text-base bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
-          size="lg"
-          isLoading={isSubmitting}
-          disabled={isSubmitting}
-        >
-          <Plus className="h-5 w-5 mr-2" />
-          Add Item
-        </Button>
+        <div className="space-y-3">
+          <Button
+            onClick={onSubmit}
+            className="w-full h-12 text-base bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
+            size="lg"
+            isLoading={isSubmitting}
+            disabled={isSubmitting}
+          >
+            <Plus className="h-5 w-5 mr-2" />
+            Add Item
+          </Button>
+          {/* New Cart button moved to header */}
+        </div>
       </CardContent>
     </Card>
   );

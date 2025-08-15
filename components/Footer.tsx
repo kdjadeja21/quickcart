@@ -12,13 +12,13 @@ export default function Footer() {
             <span className="text-sm text-muted-foreground">Plan, track, and checkout smarter.</span>
           </div>
 
-          <nav aria-label="Footer Navigation" className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm">
+          {/* <nav aria-label="Footer Navigation" className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm">
             <Link href="#" className="text-muted-foreground hover:text-foreground transition-colors">Features</Link>
             <Link href="#" className="text-muted-foreground hover:text-foreground transition-colors">Pricing</Link>
             <Link href="#" className="text-muted-foreground hover:text-foreground transition-colors">Changelog</Link>
             <Link href="#" className="text-muted-foreground hover:text-foreground transition-colors">Privacy</Link>
             <Link href="#" className="text-muted-foreground hover:text-foreground transition-colors">Terms</Link>
-          </nav>
+          </nav> */}
 
           <div className="text-sm text-muted-foreground">© {year} Quick Cart. All rights reserved.</div>
         </div>

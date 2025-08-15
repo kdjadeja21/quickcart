@@ -50,20 +50,19 @@ export function useUserSettingsSync({ currency, setCurrency, theme, setTheme, se
       }
 
       try {
-        startApiLoading('Loading plan...');
         // Check if user already has a plan before setting defaults
-        const planRes = await fetch('/api/user/plan', { 
+        const planRes = await fetch('/api/user/plan', {
           method: 'GET',
           headers: { 'Content-Type': 'application/json' }
         });
-        
+
         if (planRes.ok) {
           const planData = (await planRes.json()) as { plan?: unknown };
           const existingPlan = typeof planData.plan === 'number' ? planData.plan as number : 0;
           setPlan(existingPlan);
         } else {
           // Only set default plan if we can't retrieve existing one
-          const defaultPlanRes = await fetch('/api/user/plan', { 
+          const defaultPlanRes = await fetch('/api/user/plan', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ plan: 0 })
@@ -79,10 +78,7 @@ export function useUserSettingsSync({ currency, setCurrency, theme, setTheme, se
       } catch (e) {
         console.error('Failed to get/set plan in privateMetadata', e);
         setPlan(0);
-      } finally {
-        endApiLoading();
       }
-
       initializedUserIdRef.current = user.id;
     };
 
@@ -120,12 +116,9 @@ export function useUserSettingsSync({ currency, setCurrency, theme, setTheme, se
       const currentTheme = um.theme as Theme | undefined;
       if (currentTheme !== theme) {
         try {
-          startApiLoading('Updating theme...');
           await user.update({ unsafeMetadata: { ...um, theme } });
         } catch (e) {
           console.error('Failed to update theme in user metadata', e);
-        } finally {
-          endApiLoading();
         }
       }
     };

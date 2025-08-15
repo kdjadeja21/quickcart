@@ -214,7 +214,6 @@ export async function createCart(
   input: NewCartInput,
   maxCarts: number = 12
 ): Promise<ShoppingCart> {
-  startApiLoading();
   try {
     // Best-effort; failure should not block cart creation
     try {
@@ -267,8 +266,6 @@ export async function createCart(
     }
     console.error('Error creating cart', { userId, error });
     throw error;
-  } finally {
-    endApiLoading();
   }
 }
 

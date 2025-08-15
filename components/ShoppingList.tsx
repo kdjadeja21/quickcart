@@ -23,6 +23,8 @@ import ScrollToTopButton from '@/components/shopping/ScrollToTopButton';
 import { useUserSettingsSync } from '@/hooks/useUserSettingsSync';
 import { useScrollTopVisibility } from '@/hooks/useScrollTop';
 import { createCart, updateCart, getTodaysActiveCart, archiveOtherActiveCarts, archiveCart, listCarts } from '@/lib/cartService';
+import { endApiLoading, startApiLoading } from '@/lib/loaderToast';
+import { Loader } from '@/components/ui/loader';
 
 export function ShoppingList() {
   const [items, setItems] = useState<ShoppingItem[]>([]);
@@ -143,9 +145,10 @@ export function ShoppingList() {
       setIsAdding(true);
       if (!cartId) {
         try {
+          const cartName = await generateUniqueCartName(user.id);
           const created = await createCart(
             user.id,
-            { name: 'My Cart', items: [newItem], currency },
+            { name: cartName, items: [newItem], currency },
             12
           );
           setCartId(created.id);
@@ -209,7 +212,20 @@ export function ShoppingList() {
       return;
     }
 
+    // Check if user already has 12 carts
+    try {
+      const existingCarts = await listCarts(user.id);
+      if (existingCarts.length >= 12) {
+        toast.error('Cart limit reached', { description: 'You have reached the maximum limit of 12 carts. To create a new cart, please delete some of your existing carts first.' });
+        return;
+      }
+    } catch (error) {
+      // If we can't check the cart count, proceed with caution
+      console.warn('Could not check existing cart count:', error);
+    }
+
     setIsCreatingNewCart(true);
+    startApiLoading("Creating new Cart...");
     try {
       if (cartId) {
         try {
@@ -231,18 +247,21 @@ export function ShoppingList() {
       setItems([]);
 
       // best-effort: ensure others are archived
-      archiveOtherActiveCarts(user.id, created.id).catch(() => {});
+      await archiveOtherActiveCarts(user.id, created.id).catch(() => {});
 
+      await endApiLoading();
       toast.success('Started a new cart for today');
     } catch (error) {
+      endApiLoading();
       toast.error('Could not start a new cart');
     } finally {
-      setIsCreatingNewCart(false);
+      setIsCreatingNewCart(false);      
     }
   };
 
   return (
     <div className="bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 dark:from-slate-950 dark:via-slate-900 dark:to-slate-800">
+      <Loader isLoading={isCreatingNewCart || (isAdding && !cartId)} message={isCreatingNewCart ? "Creating new cart..." : "Creating cart and adding item..."} />
       <ShoppingHeader
         currency={currency}
         onCurrencyChange={setCurrency}
@@ -262,6 +281,9 @@ export function ShoppingList() {
           onQuantityChange={setQuantity}
           onSubmit={addItem}
           onEnterPress={addItem}
+          onNewCart={handleNewCart}
+          showNewCartButton={plan === 1 && isSignedIn}
+          disableNewCart={totalItems === 0}
         />
 
         <ShoppingSummary

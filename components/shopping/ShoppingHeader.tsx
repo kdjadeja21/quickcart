@@ -2,8 +2,8 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import { ShoppingCart, Sparkles, Menu, LogIn, Plus } from 'lucide-react';
+import { useRouter, usePathname } from 'next/navigation';
+import { ShoppingCart, Sparkles, Menu, LogIn, Home } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Select,
@@ -16,6 +16,7 @@ import { ThemeToggle } from '@/components/ThemeToggle';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { SignedIn, SignedOut, SignInButton, UserButton, useAuth } from '@clerk/nextjs';
 import { CURRENCIES } from '@/lib/currency';
+import { cn } from '@/lib/utils';
 
 interface ShoppingHeaderProps {
   currency: string;
@@ -39,6 +40,9 @@ export function ShoppingHeader({
   const isPro = isSignedIn && plan > 0;
   const showBecomePro = !isSignedIn || plan === 0;
   const router = useRouter();
+  const pathname = usePathname();
+  const isHomeActive = pathname === '/';
+  const isCartsActive = pathname?.startsWith('/carts');
 
   return (
     <div className="sticky top-0 z-50 w-full px-4 py-3">
@@ -57,37 +61,44 @@ export function ShoppingHeader({
                   <SheetTitle>Quick Settings</SheetTitle>
                 </SheetHeader>
                 <div className="mt-6 space-y-4">
-                  {isPro && (
-                    <div>
-                      <p className="mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">Carts</p>
-                      <div className="flex flex-col gap-2">
-                        <Button
-                          className="w-full gap-2"
-                          onClick={() => {
-                            setIsMobileSheetOpen(false);
-                            router.push('/carts');
-                          }}
-                        >
-                          <ShoppingCart className="h-4 w-4" />
-                          Go to Carts
-                        </Button>
-                        {typeof onNewCart === 'function' && (
+                  <div>
+                    <p className="mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">Navigation</p>
+                    <div className="flex flex-col gap-1">
+                      <Button
+                        variant="ghost"
+                        className={cn(
+                          'w-full justify-start gap-3',
+                          isHomeActive && 'bg-slate-100 text-slate-900 dark:bg-slate-800/60 dark:text-white'
+                        )}
+                        onClick={() => {
+                          setIsMobileSheetOpen(false);
+                          router.push('/');
+                        }}
+                      >
+                        <Home className="h-4 w-4" />
+                        Home
+                      </Button>
+                      {isPro && (
+                        <>
                           <Button
-                            variant="outline"
-                            className="w-full gap-2"
-                            disabled={totalItems === 0}
+                            variant="ghost"
+                            className={cn(
+                              'w-full justify-start gap-3',
+                              isCartsActive && 'bg-slate-100 text-slate-900 dark:bg-slate-800/60 dark:text-white'
+                            )}
                             onClick={() => {
                               setIsMobileSheetOpen(false);
-                              onNewCart();
+                              router.push('/carts');
                             }}
                           >
-                            <Plus className="h-4 w-4" />
-                            New
+                            <ShoppingCart className="h-4 w-4" />
+                            Carts
                           </Button>
-                        )}
-                      </div>
+                          {false && typeof onNewCart === 'function' && null}
+                        </>
+                      )}
                     </div>
-                  )}
+                  </div>
                   <div>
                     <p className="mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">Currency</p>
                     <Select
@@ -163,6 +174,28 @@ export function ShoppingHeader({
           <div className="flex w-full sm:w-auto items-center gap-3 justify-end">
             {/* Desktop controls */}
             <div className="hidden sm:flex sm:items-center gap-2">
+
+              <div className="hidden sm:flex items-center gap-1 rounded-md border border-slate-200/60 dark:border-slate-700/50 bg-white/60 dark:bg-slate-900/40 backdrop-blur px-1">
+                {isPro && (
+                  <>
+                    <Button asChild size="sm" variant="ghost" className={cn('gap-2 px-2', isHomeActive && 'bg-slate-100 dark:bg-slate-800/60')}>
+                      <Link href="/" aria-current={isHomeActive ? 'page' : undefined}>
+                        <Home className="h-4 w-4" />
+                        Home
+                      </Link>
+                    </Button>
+                    
+                    <Button asChild size="sm" variant="ghost" className={cn('gap-2 px-2', isCartsActive && 'bg-slate-100 dark:bg-slate-800/60')}>
+                      <Link href="/carts" aria-current={isCartsActive ? 'page' : undefined}>
+                        <ShoppingCart className="h-4 w-4" />
+                        Carts
+                      </Link>
+                    </Button>
+                    {false && typeof onNewCart === 'function' && null}
+                  </>
+                )}
+              </div>
+
               <div className="w-40">
                 <Select value={currency} onValueChange={onCurrencyChange}>
                   <SelectTrigger className="w-40">
@@ -180,20 +213,7 @@ export function ShoppingHeader({
               <div className="w-10">
                 <ThemeToggle />
               </div>
-              {isPro && (
-                <Button asChild size="sm" variant="outline" className="gap-2">
-                  <Link href="/carts">
-                    <ShoppingCart className="h-4 w-4" />
-                    Carts
-                  </Link>
-                </Button>
-              )}
-              {isPro && typeof onNewCart === 'function' && (
-                <Button size="sm" variant="secondary" className="gap-2" onClick={onNewCart} disabled={totalItems === 0}>
-                  <Plus className="h-4 w-4" />
-                  New Cart
-                </Button>
-              )}
+
               {showBecomePro && (
                 <Button
                   size="sm"
