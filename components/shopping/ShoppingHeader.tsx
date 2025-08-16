@@ -1,48 +1,65 @@
 "use client";
 
-import React, { useState } from 'react';
-import Link from 'next/link';
-import { useRouter, usePathname } from 'next/navigation';
-import { ShoppingCart, Sparkles, Menu, LogIn, Home } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import React, { useState, useEffect } from "react";
+import Link from "next/link";
+import { useRouter, usePathname } from "next/navigation";
+import { ShoppingCart, Sparkles, Menu, LogIn, Home } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select';
-import { ThemeToggle } from '@/components/ThemeToggle';
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
-import { SignedIn, SignedOut, SignInButton, UserButton, useAuth } from '@clerk/nextjs';
-import { CURRENCIES } from '@/lib/currency';
-import { cn } from '@/lib/utils';
+} from "@/components/ui/select";
+import { ThemeToggle } from "@/components/ThemeToggle";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
+import {
+  SignedIn,
+  SignedOut,
+  SignInButton,
+  UserButton,
+  useAuth,
+} from "@clerk/nextjs";
+import { CURRENCIES } from "@/lib/currency";
+import { useCurrencyDetection } from "@/hooks/useCurrencyDetection";
+import { cn } from "@/lib/utils";
 
 interface ShoppingHeaderProps {
-  currency: string;
-  onCurrencyChange: (code: string) => void;
   plan: number;
   totalItems: number;
   onOpenPro: () => void;
   onNewCart?: () => void;
+  onCurrencyChange?: (code: string) => void;
 }
 
 export function ShoppingHeader({
-  currency,
-  onCurrencyChange,
   plan,
   totalItems,
   onOpenPro,
   onNewCart,
+  onCurrencyChange,
 }: ShoppingHeaderProps) {
   const [isMobileSheetOpen, setIsMobileSheetOpen] = useState(false);
+  const detectedCurrency = useCurrencyDetection();
+  const [currency, setCurrency] = useState(detectedCurrency.code);
+
+  useEffect(() => {
+    setCurrency(detectedCurrency.code);
+  }, [detectedCurrency.code]);
   const { isSignedIn } = useAuth();
   const isPro = isSignedIn && plan > 0;
   const showBecomePro = !isSignedIn || plan === 0;
   const router = useRouter();
   const pathname = usePathname();
-  const isHomeActive = pathname === '/';
-  const isCartsActive = pathname?.startsWith('/carts');
+  const isHomeActive = pathname === "/";
+  const isCartsActive = pathname?.startsWith("/carts");
 
   return (
     <div className="sticky top-0 z-50 w-full px-4 py-3">
@@ -52,7 +69,12 @@ export function ShoppingHeader({
           <div className="sm:hidden">
             <Sheet open={isMobileSheetOpen} onOpenChange={setIsMobileSheetOpen}>
               <SheetTrigger asChild>
-                <Button variant="outline" size="icon" className="rounded-md border-gray-300 dark:border-slate-700" aria-label="Open settings">
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="rounded-md border-gray-300 dark:border-slate-700"
+                  aria-label="Open settings"
+                >
                   <Menu className="h-5 w-5" />
                 </Button>
               </SheetTrigger>
@@ -64,17 +86,20 @@ export function ShoppingHeader({
                   {isPro && (
                     <>
                       <div>
-                        <p className="mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">Navigation</p>
+                        <p className="mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+                          Navigation
+                        </p>
                         <div className="flex flex-col gap-1">
                           <Button
                             variant="ghost"
                             className={cn(
-                              'w-full justify-start gap-3',
-                              isHomeActive && 'bg-slate-100 text-slate-900 dark:bg-slate-800/60 dark:text-white'
+                              "w-full justify-start gap-3",
+                              isHomeActive &&
+                                "bg-slate-100 text-slate-900 dark:bg-slate-800/60 dark:text-white"
                             )}
                             onClick={() => {
                               setIsMobileSheetOpen(false);
-                              router.push('/');
+                              router.push("/");
                             }}
                           >
                             <Home className="h-4 w-4" />
@@ -84,29 +109,32 @@ export function ShoppingHeader({
                           <Button
                             variant="ghost"
                             className={cn(
-                              'w-full justify-start gap-3',
-                              isCartsActive && 'bg-slate-100 text-slate-900 dark:bg-slate-800/60 dark:text-white'
+                              "w-full justify-start gap-3",
+                              isCartsActive &&
+                                "bg-slate-100 text-slate-900 dark:bg-slate-800/60 dark:text-white"
                             )}
                             onClick={() => {
                               setIsMobileSheetOpen(false);
-                              router.push('/carts');
+                              router.push("/carts");
                             }}
                           >
                             <ShoppingCart className="h-4 w-4" />
                             Carts
                           </Button>
-                          {false && typeof onNewCart === 'function' && null}
-
+                          {false && typeof onNewCart === "function" && null}
                         </div>
                       </div>
                     </>
                   )}
                   <div>
-                    <p className="mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">Currency</p>
+                    <p className="mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+                      Currency
+                    </p>
                     <Select
                       value={currency}
                       onValueChange={(val) => {
-                        onCurrencyChange(val);
+                        setCurrency(val);
+                        onCurrencyChange?.(val);
                         setIsMobileSheetOpen(false);
                       }}
                     >
@@ -123,11 +151,17 @@ export function ShoppingHeader({
                     </Select>
                   </div>
                   <div>
-                    <p className="mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">Theme</p>
-                    <ThemeToggle onChanged={() => setIsMobileSheetOpen(false)} />
+                    <p className="mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+                      Theme
+                    </p>
+                    <ThemeToggle
+                      onChanged={() => setIsMobileSheetOpen(false)}
+                    />
                   </div>
                   <div>
-                    <p className="mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">Pro</p>
+                    <p className="mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+                      Pro
+                    </p>
                     {showBecomePro ? (
                       <Button
                         className="w-full gap-2 bg-gradient-to-r from-amber-500 to-pink-500 hover:from-amber-600 hover:to-pink-600 text-white"
@@ -141,7 +175,7 @@ export function ShoppingHeader({
                       </Button>
                     ) : (
                       <span className="inline-flex items-center rounded-full bg-gradient-to-r from-sky-500 via-blue-600 to-indigo-600 text-white px-2 py-1 text-xs font-semibold">
-                        You&#39;re Pro
+                        Pro User
                       </span>
                     )}
                   </div>
@@ -154,14 +188,19 @@ export function ShoppingHeader({
               <span className="relative inline-flex h-10 w-10 sm:h-11 sm:w-11 items-center justify-center rounded-lg bg-gradient-to-br from-indigo-500 via-violet-500 to-fuchsia-600 text-white shadow ring-1 ring-white/20">
                 <ShoppingCart className="h-5 w-5" />
                 {totalItems > 0 && (
-                  <span className="absolute -top-1.5 -right-1.5 flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-emerald-500 px-1 text-[10px] font-medium text-white shadow" aria-label={`Items in cart: ${totalItems}`}>
+                  <span
+                    className="absolute -top-1.5 -right-1.5 flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-emerald-500 px-1 text-[10px] font-medium text-white shadow"
+                    aria-label={`Items in cart: ${totalItems}`}
+                  >
                     {totalItems}
                   </span>
                 )}
               </span>
               <div>
                 <div className="flex items-center gap-1 sm:gap-2">
-                  <h1 className="inline-block whitespace-nowrap text-xl sm:text-3xl font-semibold tracking-tight leading-tight bg-gradient-to-r from-indigo-600 via-violet-500 to-fuchsia-600 dark:from-indigo-300 dark:via-sky-300 dark:to-cyan-200 bg-clip-text text-transparent">Quick Cart</h1>
+                  <h1 className="inline-block whitespace-nowrap text-xl sm:text-3xl font-semibold tracking-tight leading-tight bg-gradient-to-r from-indigo-600 via-violet-500 to-fuchsia-600 dark:from-indigo-300 dark:via-sky-300 dark:to-cyan-200 bg-clip-text text-transparent">
+                    Quick Cart
+                  </h1>
                   {isPro && (
                     <span className="inline-flex items-center rounded-full bg-gradient-to-r from-sky-500 via-blue-600 to-indigo-600 text-white px-2 py-0.5 text-[8px] font-semibold uppercase tracking-wide ring-1 ring-blue-300/60 shadow-sm transition duration-200 hover:ring-2 hover:ring-blue-300/70 hover:shadow">
                       <Sparkles className="h-3 w-3 mr-1 opacity-90" />
@@ -169,37 +208,66 @@ export function ShoppingHeader({
                     </span>
                   )}
                 </div>
-                <p className="hidden sm:block text-gray-600 dark:text-gray-400 text-xs sm:text-sm">Add items and track your shopping expenses</p>
+                <p className="hidden sm:block text-gray-600 dark:text-gray-400 text-xs sm:text-sm">
+                  Add items and track your shopping expenses
+                </p>
               </div>
             </Link>
           </div>
           <div className="flex w-full sm:w-auto items-center gap-3 justify-end">
             {/* Desktop controls */}
             <div className="hidden sm:flex sm:items-center gap-2">
-
               <div className="hidden sm:flex items-center gap-1 rounded-md border border-slate-200/60 dark:border-slate-700/50 bg-white/60 dark:bg-slate-900/40 backdrop-blur px-1">
                 {isPro && (
                   <>
-                    <Button asChild size="sm" variant="ghost" className={cn('gap-2 px-2', isHomeActive && 'bg-slate-100 dark:bg-slate-800/60')}>
-                      <Link href="/" aria-current={isHomeActive ? 'page' : undefined}>
+                    <Button
+                      asChild
+                      size="sm"
+                      variant="ghost"
+                      className={cn(
+                        "gap-2 px-2",
+                        isHomeActive && "bg-slate-100 dark:bg-slate-800/60"
+                      )}
+                    >
+                      <Link
+                        href="/"
+                        aria-current={isHomeActive ? "page" : undefined}
+                      >
                         <Home className="h-4 w-4" />
                         Home
                       </Link>
                     </Button>
 
-                    <Button asChild size="sm" variant="ghost" className={cn('gap-2 px-2', isCartsActive && 'bg-slate-100 dark:bg-slate-800/60')}>
-                      <Link href="/carts" aria-current={isCartsActive ? 'page' : undefined}>
+                    <Button
+                      asChild
+                      size="sm"
+                      variant="ghost"
+                      className={cn(
+                        "gap-2 px-2",
+                        isCartsActive && "bg-slate-100 dark:bg-slate-800/60"
+                      )}
+                    >
+                      <Link
+                        href="/carts"
+                        aria-current={isCartsActive ? "page" : undefined}
+                      >
                         <ShoppingCart className="h-4 w-4" />
                         Carts
                       </Link>
                     </Button>
-                    {false && typeof onNewCart === 'function' && null}
+                    {false && typeof onNewCart === "function" && null}
                   </>
                 )}
               </div>
 
               <div className="w-40">
-                <Select value={currency} onValueChange={onCurrencyChange}>
+                <Select
+                  value={currency}
+                  onValueChange={(val) => {
+                    setCurrency(val);
+                    onCurrencyChange?.(val);
+                  }}
+                >
                   <SelectTrigger className="w-40">
                     <SelectValue />
                   </SelectTrigger>
@@ -228,21 +296,33 @@ export function ShoppingHeader({
               )}
               <SignedOut>
                 <SignInButton mode="modal">
-                  <Button size="sm" variant="default" className="gap-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white">
+                  <Button
+                    size="sm"
+                    variant="default"
+                    className="gap-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white"
+                  >
                     <LogIn className="h-4 w-4" />
                     Sign in
                   </Button>
                 </SignInButton>
               </SignedOut>
               <SignedIn>
-                <UserButton appearance={{ elements: { userButtonBox: 'ring-1 ring-white/20' } }} />
+                <UserButton
+                  appearance={{
+                    elements: { userButtonBox: "ring-1 ring-white/20" },
+                  }}
+                />
               </SignedIn>
             </div>
             {/* Mobile auth controls (right side) */}
             <div className="sm:hidden flex items-center">
               <SignedOut>
                 <SignInButton mode="modal">
-                  <Button onClick={() => setIsMobileSheetOpen(false)} size="icon" className="gap-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white">
+                  <Button
+                    onClick={() => setIsMobileSheetOpen(false)}
+                    size="icon"
+                    className="gap-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white"
+                  >
                     <LogIn className="h-4 w-4" />
                   </Button>
                 </SignInButton>
@@ -259,5 +339,3 @@ export function ShoppingHeader({
 }
 
 export default ShoppingHeader;
-
-
