@@ -28,7 +28,6 @@ import ShoppingItems from "@/components/shopping/ShoppingItems";
 import ScrollToTopButton from "@/components/shopping/ScrollToTopButton";
 import { useUserSettingsSync } from "@/hooks/useUserSettingsSync";
 import { useScrollTopVisibility } from "@/hooks/useScrollTop";
-import { useCurrencyDetection } from "@/hooks/useCurrencyDetection";
 import {
   createCart,
   updateCart,
@@ -68,13 +67,11 @@ export function ShoppingList() {
   const previousValues = useRef({ amount: 0, items: 0, quantity: 0 });
   const cleanupRef = useRef<(() => void) | null>(null);
 
-  // Use currency detection and settings
-  const detectedCurrency = useCurrencyDetection();
+  // Load settings (currency) on mount
   useEffect(() => {
     const savedSettings = loadSettings();
-    // Use detected currency if available, otherwise use saved settings
-    setCurrency(detectedCurrency?.code || savedSettings.currency);
-  }, [detectedCurrency]);
+    setCurrency(savedSettings.currency);
+  }, []);
 
   // Load items depending on plan: plan === 1 => Firebase, else localStorage
   useEffect(() => {
@@ -307,11 +304,7 @@ export function ShoppingList() {
   const totalAmount = items.reduce((sum, item) => sum + item.total, 0);
   const totalQuantity = items.reduce((sum, item) => sum + item.quantity, 0);
   const totalItems = items.length;
-  // Set pro price based on detected or selected currency
-  const displayProPrice =
-    detectedCurrency?.code === "INR" || currency === "INR"
-      ? "INR 99"
-      : "USD 1.99";
+  const displayProPrice = currency === "INR" ? "INR 99" : "USD 1.99";
 
   const generateUniqueCartName = async (uid: string) => {
     const used = new Set(

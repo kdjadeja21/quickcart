@@ -2,19 +2,12 @@ import { NextResponse } from "next/server";
 
 export async function GET() {
   try {
-    const response = await fetch("https://ipwhois.app/json/");
+    const response = await fetch("https://ipapi.co/json/");
     const data = await response.json();
-
-    if (data.error) {
-      return NextResponse.json(
-        { error: data.reason || "Failed to fetch location data" },
-        { status: 500 }
-      );
-    }
 
     return NextResponse.json({
       countryCode: data.country_code,
-      currency: data.currency_code,
+      currency: data.currency,
     });
   } catch (error) {
     console.error("Error fetching location:", error);
